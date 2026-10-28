@@ -1,0 +1,19 @@
+# Данные организаторов (более 70 МБ) — не коммитятся
+Материалы к хакатону/
+
+# Промежуточные артефакты обучения и отладки
+work/data.npy
+work/*.npy
+work/cs_target.npz
+work/*.pt
+work/fig/
+work/*_hist.json
+work/*.json
+work/*.py
+work/log_*.txt
+
+__pycache__/
+*.pyc
+
+# Превью макета (генерируется заново)
+presentation/proof/
