@@ -107,7 +107,19 @@ def fill_rgb(shape):
     return None
 
 
-def render(pptx_path, out_dir='presentation/proof'):
+def fill_alpha(shape):
+    try:
+        from pptx.oxml.ns import qn
+        srgb = shape.fill._xPr.find(qn('a:solidFill')).find(qn('a:srgbClr'))
+        al = srgb.find(qn('a:alpha'))
+        if al is not None:
+            return float(int(al.get('val'))) / 100000.0
+    except Exception:
+        pass
+    return 1.0
+
+
+def render(pptx_path, out_dir='presentation/proof', bg=(11, 18, 32), dpi=None):
     prs = Presentation(pptx_path)
     W = int(prs.slide_width / 914400 * DPI)
     H = int(prs.slide_height / 914400 * DPI)
@@ -115,7 +127,7 @@ def render(pptx_path, out_dir='presentation/proof'):
     out.mkdir(parents=True, exist_ok=True)
     paths = []
     for i, slide in enumerate(prs.slides, 1):
-        img = Image.new('RGB', (W, H), (11, 18, 32))
+        img = Image.new('RGB', (W, H), bg)
         dr = ImageDraw.Draw(img)
         for shape in slide.shapes:
             if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
@@ -138,9 +150,11 @@ def render(pptx_path, out_dir='presentation/proof'):
                         cell = tbl.cell(r, c)
                         col = None
                         try:
+                            if cell.fill.type != MSO_FILL.SOLID:
+                                raise ValueError
                             col = tuple(cell.fill.fore_color.rgb)
                         except Exception:
-                            col = (17, 28, 48)
+                            col = bg
                         dr.rectangle([x, y, x + cw, y + rh], fill=col)
                         txt = cell.text
                         if txt:
@@ -162,7 +176,14 @@ def render(pptx_path, out_dir='presentation/proof'):
                 y = shape.top / 914400 * DPI
                 w = shape.width / 914400 * DPI
                 h = shape.height / 914400 * DPI
-                dr.rectangle([x, y, x + w, y + h], fill=fill_rgb(shape))
+                col = fill_rgb(shape)
+                a = fill_alpha(shape)
+                if a >= 0.999:
+                    dr.rectangle([x, y, x + w, y + h], fill=col)
+                else:
+                    layer = Image.new('RGB', (max(int(w), 1), max(int(h), 1)), col)
+                    img.paste(layer, (int(x), int(y)),
+                              Image.new('L', layer.size, int(255 * a)))
             else:
                 x = shape.left / 914400 * DPI
                 y = shape.top / 914400 * DPI
